@@ -4,7 +4,7 @@
 (require (for-syntax syntax/parse))
 (require "my-expand.rkt")
 
-(provide note perform)
+(provide note play perform time-offset transpose-octave apply-voices)
 
 (struct note [pitch accidental octave] #:transparent)
 (struct key [tonic mode] #:transparent)
@@ -33,16 +33,6 @@
 
 (define (duration->rest d tempo)
   (silence (tone-length d tempo)))
-
-(define-syntax define-homo-match-expander
-  (syntax-parser
-    [(_ name transformer)
-     #'(define-match-expander name transformer transformer)]))
-
-(define-homo-match-expander loc
-  (syntax-parser
-    [(_ start end voices)
-     #'(list (interval-coordinate start end) (subset-coordinate voices))]))
 
 ;; convert a musical context into a sound. a more advanced renderer would get tempos from the context.
 ;; a more advanced renderer would also not be stupid, avoiding overlaying a new sound for each note.
@@ -101,21 +91,3 @@
    (match-lambda
      [(coordinate start end _) (coordinate start end voices)])
    context))
-
-(define my-comp
-  (in (0 40 (S A T B))
-    (define theme1
-      (in (0 16 ())
-        (in (0 4 ())
-          (bind note (note 'a 0 0)))
-        (in (4 8 ())
-          (bind note (note 'b 0 0)))
-        (in (8 12 ())
-          (bind note (note 'c 0 1)))
-        (in (12 16 ())
-          (bind note (note 'd 0 1)))))
-    (apply-voices (transpose-octave theme1 4) '(S))
-    (apply-voices (time-offset (transpose-octave theme1 3) 8) '(A))
-    (apply-voices (time-offset (transpose-octave theme1 2) 16) '(T))))
-
-(play (perform my-comp 240))
