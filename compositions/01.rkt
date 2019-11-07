@@ -1,7 +1,8 @@
 #lang racket
 
-(require "../my-expand.rkt")
-(require "../my-player.rkt")
+(require "../music.rkt")
+(require "../eval.rkt")
+(require "../perform.rkt")
 (require rsound)
 
 (set-output-device! 4)

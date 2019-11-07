@@ -1,6 +1,7 @@
 #lang curly-fn racket
+
 (require (for-syntax syntax/parse syntax/stx syntax/apply-transformer) racket/control)
-(provide in context context-bindings coordinate within?)
+(provide in context context-bindings coordinate within? map-bindings map-coordinates)
 
 (define *local-context* (make-parameter (make-hash)))
 (define *time-context* (make-parameter '()))
@@ -12,10 +13,10 @@
 
 (define-syntax in
   (syntax-parser
-    [(_ (start end (voices ...)) exprs ...)
+    [(_ (the-start the-end (voices ...)) exprs ...)
      (define-values (bindings remaining-exprs) (extract-bindings (syntax->list #'(exprs ...))))
      #`(let-values (#,@bindings)
-         (let ([coord (coordinate start end '(voices ...))])
+         (let ([coord (coordinate the-start the-end '(voices ...))])
            (meta-eval
             (list #,@(stx-map
                       (λ (expr)
@@ -28,7 +29,7 @@
                                [(? context?) val]
                                [_ (result (convert-local-bindings (*local-context*)) #f)]))))
                       remaining-exprs))
-            '())))]))
+            (list (cons coord (list (cons 'start the-start) (cons 'end the-end)))))))]))
 
 (define (meta-eval mapped-fns time-ctxt (parent #f))
   (define-values (mapped-bindings mapped-ks)
@@ -164,3 +165,17 @@
          (error 'normalize "child is not subcontext of parent! ~s from ~s in ~s"
                 new-mapping mapping coord))
        (cons (cons new-mapping mapped) remapped)])))
+
+(define (map-coordinates f ctxt)
+  (context
+   (map
+    (λ (fr4me)
+      (cons (f (car fr4me)) (cdr fr4me)))
+    (context-bindings ctxt))))
+
+(define (map-bindings f ctxt)
+  (context
+   (map
+    (λ (fr4me)
+      (cons (car fr4me) (map f (cdr fr4me))))
+    (context-bindings ctxt))))

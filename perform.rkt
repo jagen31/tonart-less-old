@@ -2,12 +2,10 @@
 (require racket/generic)
 (require rsound)
 (require (for-syntax syntax/parse))
-(require "my-expand.rkt")
+(require "eval.rkt")
+(require "music.rkt")
 
-(provide note play perform time-offset transpose-octave apply-voices)
-
-(struct note [pitch accidental octave] #:transparent)
-(struct key [tonic mode] #:transparent)
+(provide play perform)
 
 (require rsound
          rsound/piano-tones
@@ -57,37 +55,3 @@
       [_ acc]))
   (perform (context-bindings context) (silence 1)))
 
-(define (map-coordinates f ctxt)
-  (context
-   (map
-    (λ (fr4me)
-      (cons (f (car fr4me)) (cdr fr4me)))
-    (context-bindings ctxt))))
-
-(define (map-bindings f ctxt)
-  (context
-   (map
-    (λ (fr4me)
-      (cons (car fr4me) (map f (cdr fr4me))))
-    (context-bindings ctxt))))
-
-(define (time-offset context offset)
-  (map-coordinates
-   (match-lambda
-     [(coordinate start end voices) (coordinate (+ start offset) (+ end offset) voices)])
-   context))
-
-(define (transpose-octave context offset)
-  (map-bindings
-   (match-lambda
-     [(cons key value)
-      (if (eq? key 'note)
-          (cons 'note (struct-copy note value [octave (+ (note-octave value) offset)]))
-          (cons key value))])
-   context))
-
-(define (apply-voices context voices)
-  (map-coordinates
-   (match-lambda
-     [(coordinate start end _) (coordinate start end voices)])
-   context))
