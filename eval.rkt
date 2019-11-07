@@ -1,7 +1,8 @@
 #lang curly-fn racket
 
-(require (for-syntax syntax/parse syntax/stx syntax/apply-transformer) racket/control)
-(provide in context context-bindings coordinate within? map-bindings map-coordinates)
+(require (for-syntax syntax/parse syntax/stx syntax/apply-transformer))
+(provide in context context-bindings coordinate within?
+         map-bindings map-coordinates time-offset merge sequence)
 
 (define *local-context* (make-parameter (make-hash)))
 (define *time-context* (make-parameter '()))
@@ -15,7 +16,7 @@
   (syntax-parser
     [(_ (the-start the-end (voices ...)) exprs ...)
      (define-values (bindings remaining-exprs) (extract-bindings (syntax->list #'(exprs ...))))
-     #`(let-values (#,@bindings)
+     #`(letrec-values (#,@bindings)
          (let ([coord (coordinate the-start the-end '(voices ...))])
            (meta-eval
             (list #,@(stx-map
@@ -29,7 +30,7 @@
                                [(? context?) val]
                                [_ (result (convert-local-bindings (*local-context*)) #f)]))))
                       remaining-exprs))
-            (list (cons coord (list (cons 'start the-start) (cons 'end the-end)))))))]))
+            '())))]))
 
 (define (meta-eval mapped-fns time-ctxt (parent #f))
   (define-values (mapped-bindings mapped-ks)
@@ -55,12 +56,15 @@
         [_ (values mapped-bindings mapped-ks)])))
   (define time-ctxt* (merge-bindings mapped-bindings time-ctxt))
   (cond
-    [(and (null? mapped-ks) parent) (results time-ctxt* '())]
-    [(and (null? mapped-bindings) parent) (results time-ctxt mapped-ks)]
     [(null? mapped-ks) (context time-ctxt*)]
+    [(and (null? mapped-bindings) parent) (results time-ctxt mapped-ks)]
     [(null? mapped-bindings) (error 'meta-eval "made no progress! bindings: ~s" time-ctxt)]
     [else (meta-eval mapped-ks time-ctxt* parent)]))
-  
+
+(define-for-syntax (tee expr)
+  (println expr)
+  expr)
+
 (define-for-syntax (extract-bindings exprs)
   (define exprs* (map just-macros exprs))
   (for/fold ([bindings '()] [remaining-exprs '()]
@@ -85,12 +89,13 @@
   (syntax-parse stx
     [({~literal let-values} ([(let-ids ...) vals] ...) body-exprs ...)
      (define-values (bindings remaining-exprs) (extract-bindings (syntax->list #'(body-exprs ...))))
-     #`(let-values ([(let-ids ...) vals] ... #,@bindings)
-         #,@(map my-expander remaining-exprs))]
+     #`(let-values ([(let-ids ...) vals] ...)
+              (letrec-value (#,@bindings)
+                            #,@(map my-expander remaining-exprs)))]
     [({~literal #%plain-lambda} (args ...) body-exprs ...)
      (define-values (bindings remaining-exprs) (extract-bindings (syntax->list #'(body-exprs ...))))
      #`(lambda (args ...)
-         (let-values (#,@bindings)
+         (letrec-values (#,@bindings)
            #,@(map my-expander remaining-exprs)))]
     [({~literal meta-eval} fns li) #'(meta-eval fns li #t)]
     [({~literal bind} name:id expr) #`(dict-set! (*local-context*) 'name #,(my-expander #'expr))]
@@ -179,3 +184,30 @@
     (λ (fr4me)
       (cons (car fr4me) (map f (cdr fr4me))))
     (context-bindings ctxt))))
+
+(define (start-of ctxt)
+  (for/fold ([min-start #f])
+            ([(coord _) (in-dict (context-bindings ctxt))])
+    (match coord
+      [(coordinate start _ _) (if min-start (min min-start start) start)])))
+
+(define (end-of ctxt)
+  (for/fold ([max-end #f])
+            ([(coord _) (in-dict (context-bindings ctxt))])
+    (match coord
+      [(coordinate _ end _) (if max-end (max max-end end) end)])))
+
+(define (time-offset context offset)
+  (map-coordinates
+   (match-lambda
+     [(coordinate start end voices) (coordinate (+ start offset) (+ end offset) voices)])
+   context))
+
+(define (merge c1 c2)
+  (match* (c1 c2)
+    [((context b1) (context b2)) (context (merge-bindings b1 b2))]))
+
+(define (sequence c1 c2)
+  (define start (start-of c1))
+  (define end (end-of c1))
+  (merge c1 (time-offset c2 (- end start))))

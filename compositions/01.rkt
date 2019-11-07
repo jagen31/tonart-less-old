@@ -3,9 +3,6 @@
 (require "../music.rkt")
 (require "../eval.rkt")
 (require "../perform.rkt")
-(require rsound)
-
-(set-output-device! 4)
 
 (define my-comp
   (in (0 32 (S A T B))
