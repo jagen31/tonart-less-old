@@ -1,7 +1,7 @@
 #lang curly-fn racket
 
 (require (for-syntax racket racket/syntax syntax/parse syntax/stx) racket/stxparam)
-(provide in match-context coordinate --)
+(provide in match-context coordinate -- ||)
 
 (define *time-ctxt* (make-parameter '()))
 (define *break* (make-parameter #f))
@@ -129,7 +129,7 @@
 (define (end-of ctxt)
   (match ctxt
     [(results vals _)
-     (apply max (map (match-lambda [(cons (coordinate _ end _) _) end]) vals))]))
+     (apply max (map (match-lambda [(cons (list-no-order `(end . ,end) more ...) _) end]) vals))]))
 
 (define-syntax --
   (syntax-parser
@@ -162,6 +162,23 @@
      #`(let* ([#,voices-id #,(get-from-dims 'voices ''())]
               [offset-ids sums*] ...)
          (in ([start #,(get-from-dims 'start 0)]) #,@ins))]))
+
+(define-syntax ||
+  (syntax-parser
+    [(_ (dimensions:dimension ...) exprs ...+)
+     #:with [expr-ids ...] (stx-map (λ (_) (gensym)) #'(exprs ...))
+     (define (get-from-dims key default)
+       ;; this is still bad, even when i copy paste it down here
+       (datum->syntax
+        #'(dimensions ...)
+        (car (dict-ref (syntax->datum #'(dimensions ...)) key (list default)))))
+     #`(let ([expr-ids exprs] ...)
+         (in ([start #,(get-from-dims 'start 0)]
+              #,@(let ([voices (get-from-dims 'voices #f)])
+                   (if voices (list #`[voices '#,voices]) '()))
+              [end (max (end-of expr-ids) ...)])
+
+           expr-ids ...))]))
 
 (define-for-syntax (tee expr)
   (println expr)

@@ -29,7 +29,12 @@
       ;; should be able to leave this first length off...
       ;; need to add elision
       (12 (theme2 2)) (4 (note 'e 0 2)) (8 (note 'a 0 2)))
-    (in ([start 24] [end 32] [voices '(S)]) (note 'a 0 5))
+    (-- ([start 24] [voices '(S)])
+      (.5 (note 'a 0 5))
+      (.5 (note 'b 0 5))
+      (.5 (note 'a 0 5))
+      (.5 (note 'g 1 5))
+      (6 (note 'a 0 5)))
     (in ([start 24] [end 32] [voices '(A)]) (note 'c 1 4))
     (in ([start 24] [end 32] [voices '(T)]) (note 'e 0 3))))
 
