@@ -1,0 +1,38 @@
+#lang racket
+
+(require "eval.rkt")
+(require "music.rkt")
+
+(provide realize)
+
+(define (tremolo-realizer ctxt data)
+  (define-values (coords+notes rest-of-ctxt) (partition-context ctxt note?))
+  (define step (tremolo-duration data))
+  (|| ()
+    (for/fold ([ctxt* empty-context])
+              ([(coord notes) (in-dict coords+notes)])
+      (|| ()
+        (match coord
+          [(coordinate start end voices)
+           (for/fold ([ctxt* empty-context])
+                     ([note notes])
+             (|| ()
+               (for/fold ([ctxt* empty-context])
+                         ([i (in-range start end step)])
+                 (|| ()
+                   (in ([start i] [end (+ i step)] [voices voices]) note)
+                   ctxt*))
+               ctxt*))])
+        ctxt*))
+    rest-of-ctxt))
+
+(define (realize ctxt)
+  (define-values (coords+tremolos rest-ctxt) (partition-context ctxt g:tremolo?))
+  (for/fold ([ctxt* rest-ctxt])
+            ([(coord tremolos) (in-dict coords+tremolos)])
+    (define-values (sub-ctxt rest-ctxt) (extract-subcontext ctxt* coord))
+    (|| ()
+      (for/fold ([ctxt* sub-ctxt])
+                ([tremolo tremolos])
+        (tremolo-realizer ctxt* tremolo))
+      rest-ctxt)))

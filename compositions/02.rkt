@@ -3,7 +3,7 @@
 (require "../eval.rkt")
 (require "../music.rkt")
 (require "../perform.rkt")
-(require rsound)
+(require "../realize.rkt")
 
 (define (secret o)
   (-- ()
@@ -17,6 +17,7 @@
 
 (define comp
   (|| ([voices '(s a t b)])
+    (g:tremolo .5)
     (-- ([voices '(s)])
       (2 (note 'a 0 4))
       (4 (note 'b -1 4))
@@ -33,6 +34,5 @@
       (2 (note 'g 0 2))
       (2 (note 'a 0 2))
       (4 (note 'd 0 2)))))
-  
-  
-(play (perform comp 240))
+
+(play (perform (realize comp) 240))

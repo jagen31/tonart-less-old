@@ -37,17 +37,20 @@
 (define (perform context tempo)
   (define (perform c0ntext acc)
     (match c0ntext
-      [(list (cons (coordinate start end voices) n0te) more-frames ...)
-       (define piano (note->piano n0te (- end start) tempo))
-       (perform
-        more-frames
-        (rs-overlay
-         (if (zero? start)
-             piano
-             (rs-append
-              (duration->rest start tempo)
-              piano))
-         acc))]
+      [(list (list (coordinate start end voices) notes ...) more-frames ...)
+         (perform
+          more-frames
+          (for/fold ([acc acc])
+                    ([n0te notes])
+            (define piano (note->piano n0te (- end start) tempo))
+            
+            (rs-overlay
+             (if (zero? start)
+                 piano
+                 (rs-append
+                  (duration->rest start tempo)
+                  piano))
+             acc)))]
       [else acc]))
   (perform (match-context context note?) (silence 1)))
 

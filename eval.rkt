@@ -1,7 +1,7 @@
 #lang curly-fn racket
 
 (require (for-syntax racket racket/syntax syntax/parse syntax/stx) racket/stxparam)
-(provide in match-context coordinate -- ||)
+(provide in empty-context partition-context match-context extract-subcontext coordinate -- ||)
 
 (define *time-ctxt* (make-parameter '()))
 (define *break* (make-parameter #f))
@@ -129,7 +129,12 @@
 (define (end-of ctxt)
   (match ctxt
     [(results vals _)
-     (apply max (map (match-lambda [(cons (list-no-order `(end . ,end) more ...) _) end]) vals))]))
+     (if (null? vals)
+         0
+         (apply max
+                (map (match-lambda
+                       [(cons (list-no-order `(end . ,end) more ...) _) end])
+                     vals)))]))
 
 (define-syntax --
   (syntax-parser
@@ -175,25 +180,41 @@
      #`(let ([expr-ids exprs] ...)
          (in ([start #,(get-from-dims 'start 0)]
               #,@(let ([voices (get-from-dims 'voices #f)])
-                   (if voices (list #`[voices '#,voices]) '()))
-              [end (max (end-of expr-ids) ...)])
-
+                   (if voices (list #`[voices #,voices]) '()))
+              [end (max (match expr-ids
+                          [(results vals _) (end-of expr-ids)]
+                          [else 0]) ...)])
            expr-ids ...))]))
-
-(define-for-syntax (tee expr)
-  (println expr)
-  expr)
 
 #;(define (trim-context-start context duration)
     (for/fold ([])))
 
-(define (match-context ctxt pred)
+(define empty-context (results '() '()))
+
+(define (partition-context ctxt pred)
   (match ctxt
     [(results coords+vals _)
-     (foldl (λ (coord+vals acc)
-              (match coord+vals
-                [(cons coord vals)
-                 (define result (findf pred vals))
-                 (if result (cons (cons coord result) acc) acc)]))
-            '()
-            coords+vals)]))
+     (define-values (lefts rights)
+       (for/fold ([lefts '()] [rights '()])
+                 ([coord+vals coords+vals])
+         (match coord+vals
+           [(cons coord vals)
+            (define-values (left right) (partition pred vals))
+            (values (if (null? left) lefts (cons (cons coord left) lefts))
+                    (if (null? right) rights (cons (cons coord right) rights)))])))
+     (values lefts (results rights '()))]))
+
+(define (extract-subcontext ctxt coord)
+  (match ctxt
+    [(results coords+vals ks)
+     (define-values (lefts rights)
+       (for/fold ([lefts '()] [rights '()])
+                 ([coord+vals coords+vals])
+         (if (within? (car coord+vals) coord)
+             (values (cons coord+vals lefts) rights)
+             (values lefts (cons coord+vals rights)))))
+     (values (results lefts '()) (results rights ks))]))
+
+(define (match-context ctxt pred)
+  (define-values (lefts _) (partition-context ctxt pred))
+  lefts)
