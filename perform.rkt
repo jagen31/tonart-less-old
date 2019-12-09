@@ -37,21 +37,21 @@
 (define (perform context tempo)
   (define (perform c0ntext acc)
     (match c0ntext
-      [(list (cons (coordinate start end voices) bindings) more-frames ...)
-       (define n0te (dict-ref bindings 'note #f))
-       (cond
-         [n0te
-          (define piano (note->piano n0te (- end start) tempo))
-          (perform
-           more-frames
-           (rs-overlay
-            (if (zero? start)
-                piano
-                (rs-append
-                 (duration->rest start tempo)
-                 piano))
-            acc))]
-         [else (perform more-frames acc)])]
-      [_ acc]))
-  (perform (context-bindings context) (silence 1)))
+      [(list (cons (coordinate start end voices) n0te) more-frames ...)
+       (println start)
+       (println end)
+       (println voices)
+       (println n0te)
+       (define piano (note->piano n0te (- end start) tempo))
+       (perform
+        more-frames
+        (rs-overlay
+         (if (zero? start)
+             piano
+             (rs-append
+              (duration->rest start tempo)
+              piano))
+         acc))]
+      [else acc]))
+  (perform (match-context context note?) (silence 1)))
 
