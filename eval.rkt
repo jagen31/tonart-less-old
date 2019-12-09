@@ -69,8 +69,7 @@
       [(empty? ks) (results ctxt* '())]
       [else (meta-eval
              (for/list ([(coord k) (in-dict ks)])
-               (let/cc
-                 break
+               (let/ec break
                  (parameterize ([*time-ctxt* (get-values ctxt* coord)]
                                 [*break* break])
                    (k))))
@@ -102,7 +101,7 @@
          (syntax-parameterize
              ([get (syntax-parser
                      [(_ pred)
-                      #'(let/cc continue (get-recur pred continue coord))])])
+                      #'(let/ec continue (get-recur pred continue coord))])])
            defs ...
            (meta-eval
             coord
@@ -158,10 +157,10 @@
                   #,@(if (syntax-e voices-value) (list #`[voices #,voices-id]) '()))
                #,@inner-exprs)
            exprs)
-           (cons #`(+ #,duration #,offset-id) sums))))
+          (cons #`(+ #,duration #,offset-id) sums))))
      (define/with-syntax [sums* ...] sums)
      #`(let* ([#,voices-id #,(get-from-dims 'voices ''())]
-                   [offset-ids sums*] ...)
+              [offset-ids sums*] ...)
          (in ([start #,(get-from-dims 'start 0)]) #,@ins))]))
 
 (define-for-syntax (tee expr)
@@ -169,7 +168,7 @@
   expr)
 
 #;(define (trim-context-start context duration)
-  (for/fold ([])))
+    (for/fold ([])))
 
 (define (match-context ctxt pred)
   (match ctxt

@@ -38,10 +38,6 @@
   (define (perform c0ntext acc)
     (match c0ntext
       [(list (cons (coordinate start end voices) n0te) more-frames ...)
-       (println start)
-       (println end)
-       (println voices)
-       (println n0te)
        (define piano (note->piano n0te (- end start) tempo))
        (perform
         more-frames
